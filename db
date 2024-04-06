@@ -1,0 +1,127 @@
+import 'package:flutter/material.dart';
+
+class Event {
+  int id;
+  String title;
+  DateTime date;
+  String description;
+  String photoPath;
+  String audioPath;
+
+  Event({this.id, this.title, this.date, this.description, this.photoPath, this.audioPath});
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'date': date.toIso8601String(),
+      'description': description,
+      'photoPath': photoPath,
+      'audioPath': audioPath,
+    };
+  }
+
+  Event.fromMap(Map<String, dynamic> map) {
+    id = map['id'];
+    title = map['title'];
+    date = DateTime.parse(map['date']);
+    description = map['description'];
+    photoPath = map['photoPath'];
+    audioPath = map['audioPath'];
+  }
+}
+class DBHelper {
+  static Database _database;
+  static const String dbName = 'events.db';
+  static const String tableName = 'events';
+
+  DBHelper._();
+
+  static final DBHelper instance = DBHelper._();
+
+  Future<Database> get database async {
+    if (_database != null) return _database;
+    _database = await initDatabase();
+    return _database;
+  }
+
+  Future<Database> initDatabase() async {
+    var documentsDirectory = await getApplicationDocumentsDirectory();
+    var path = join(documentsDirectory.path, dbName);
+    return await openDatabase(path, version: 1, onCreate: _createDB);
+  }
+
+  Future<void> _createDB(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE $tableName (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        date TEXT,
+        description TEXT,
+        photoPath TEXT,
+        audioPath TEXT
+      )
+    ''');
+  }
+
+  Future<int> insertEvent(Event event) async {
+    Database db = await instance.database;
+    return await db.insert(tableName, event.toMap());
+  }
+
+  Future<List<Event>> getAllEvents() async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> maps = await db.query(tableName);
+    return List.generate(maps.length, (i) {
+      return Event.fromMap(maps[i]);
+    });
+  }
+}
+
+class _EventListScreenState extends State<EventListScreen> {
+  List<Event> events = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // selinex carolina tapia perez 2020-9882
+  }
+
+  void _addEvent() async {
+    final picker = ImagePicker();
+    final pickedImage = await picker.getImage(source: ImageSource.camera);
+    final pickedAudio = File('path/to/audio/file'); // You need to implement audio recording functionality
+
+    if (pickedImage != null && pickedAudio != null) {
+      Event newEvent = Event(
+        title: 'Nuevo Evento',
+        date: DateTime.now(),
+        description: '',
+        photoPath: pickedImage.path,
+        audioPath: pickedAudio.path,
+      );
+      int id = await DBHelper.instance.insertEvent(newEvent);
+      newEvent.id = id;
+      setState(() {
+        events.add(newEvent);
+      });
+    }
+  }
+
+// 2020-9882  selinex carolina tapia perez
+
+
+  void _loadEvents() async {
+    List<Event> loadedEvents = await DBHelper.instance.getAllEvents();
+    setState(() {
+      events = loadedEvents;
+    });
+  }
+}
+
+
